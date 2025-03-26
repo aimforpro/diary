@@ -7,6 +7,8 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { saveDiary, generateId } from '@/lib/storage';
+import { analyzeEmotion } from '@/lib/emotion';
 
 export default function NewDiaryPage() {
   const router = useRouter();
@@ -21,9 +23,27 @@ export default function NewDiaryPage() {
       return;
     }
 
-    // TODO: 일기 저장 로직 구현
-    console.log('일기 저장:', { date: format(selectedDate, 'yyyy-MM-dd'), content });
-    router.push('/diary');
+    try {
+      // 감정 분석
+      const emotion = analyzeEmotion(content);
+      
+      // 새 일기 객체 생성
+      const newDiary = {
+        id: generateId(),
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        content: content.trim(),
+        emotion
+      };
+
+      // 로컬스토리지에 저장
+      saveDiary(newDiary);
+      
+      alert('일기가 저장되었습니다.');
+      router.push('/diary');
+    } catch (error) {
+      console.error('일기 저장 중 오류:', error);
+      alert('일기 저장 중 오류가 발생했습니다.');
+    }
   };
 
   const handleCancel = () => {

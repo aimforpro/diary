@@ -7,7 +7,7 @@ export default function Home() {
   const [activeIndex, setActiveIndex] = useState(0);
   const cards = [
     {
-      title: '일기 작성',
+      title: '일기 작성?',
       description: '매일의 감정과 생각을 기록하세요',
       href: '/diary/new',
       buttonText: '시작하기',
