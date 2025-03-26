@@ -5,9 +5,11 @@ import { useState, useEffect } from 'react';
 
 export default function Home() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  
   const cards = [
     {
-      title: '일기 작성?',
+      title: '일기 작성',
       description: '매일의 감정과 생각을 기록하세요',
       href: '/diary/new',
       buttonText: '시작하기',
@@ -33,11 +35,27 @@ export default function Home() {
   ];
 
   const nextSlide = () => {
+    setDirection('next');
     setActiveIndex((prev) => (prev + 1) % cards.length);
   };
 
   const prevSlide = () => {
+    setDirection('prev');
     setActiveIndex((prev) => (prev - 1 + cards.length) % cards.length);
+  };
+
+  const getItemClassName = (index: number): string => {
+    let className = 'carousel-item';
+    
+    if (index === activeIndex) {
+      className += ' active';
+    } else if (direction === 'next' && index === (activeIndex + 1) % cards.length) {
+      className += ' next';
+    } else if (direction === 'prev' && index === (activeIndex - 1 + cards.length) % cards.length) {
+      className += ' prev';
+    }
+    
+    return className;
   };
 
   useEffect(() => {
@@ -67,27 +85,20 @@ export default function Home() {
           </button>
           
           <div className="carousel">
-            {cards.map((card, index) => {
-              let className = 'carousel-item';
-              if (index === activeIndex) className += ' active';
-              else if (index === (activeIndex + 1) % cards.length) className += ' next';
-              else if (index === (activeIndex - 1 + cards.length) % cards.length) className += ' prev';
-              
-              return (
-                <div key={card.title} className={className}>
-                  <div className={`${card.bgClass} w-full h-full rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-lg`}>
-                    <h2 className="text-2xl font-bold mb-4 text-gray-900">{card.title}</h2>
-                    <p className="text-gray-600 mb-8">{card.description}</p>
-                    <Link 
-                      href={card.href}
-                      className={`${card.buttonClass} text-white px-8 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 shadow-md`}
-                    >
-                      {card.buttonText}
-                    </Link>
-                  </div>
+            {cards.map((card, index) => (
+              <div key={card.title} className={getItemClassName(index)}>
+                <div className={`${card.bgClass} w-full h-full rounded-2xl p-8 flex flex-col items-center justify-center text-center shadow-lg`}>
+                  <h2 className="text-2xl font-bold mb-4 text-gray-900">{card.title}</h2>
+                  <p className="text-gray-600 mb-8">{card.description}</p>
+                  <Link 
+                    href={card.href}
+                    className={`${card.buttonClass} text-white px-8 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 shadow-md`}
+                  >
+                    {card.buttonText}
+                  </Link>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
           <button
@@ -104,7 +115,10 @@ export default function Home() {
             {cards.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setActiveIndex(index)}
+                onClick={() => {
+                  setDirection(index > activeIndex ? 'next' : 'prev');
+                  setActiveIndex(index);
+                }}
                 className={`carousel-dot ${index === activeIndex ? 'active' : ''}`}
                 aria-label={`슬라이드 ${index + 1}로 이동`}
               />
@@ -113,5 +127,5 @@ export default function Home() {
         </div>
       </div>
     </main>
-  )
+  );
 } 

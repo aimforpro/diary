@@ -10,13 +10,13 @@
   height: 400px;
   margin: 0 auto;
   padding: 0 40px;
-  overflow: hidden;
 }
 
 .carousel {
   position: relative;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .carousel-item {
@@ -25,26 +25,29 @@
   left: 0;
   width: 100%;
   height: 100%;
-  transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+  transition: all 0.5s ease;
   opacity: 0;
-  pointer-events: none;
+  visibility: hidden;
+  transform: translateX(100%);
 }
 
 .carousel-item.active {
   opacity: 1;
+  visibility: visible;
   transform: translateX(0);
   z-index: 2;
-  pointer-events: auto;
 }
 
 .carousel-item.prev {
   opacity: 0.3;
+  visibility: visible;
   transform: translateX(-100%);
   z-index: 1;
 }
 
 .carousel-item.next {
   opacity: 0.3;
+  visibility: visible;
   transform: translateX(100%);
   z-index: 1;
 }
@@ -72,7 +75,6 @@
 .carousel-button:hover {
   background: #f7fafc;
   box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-50%) scale(1.1);
 }
 
 .carousel-button.prev {
