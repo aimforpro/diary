@@ -1,7 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAllDiaries, deleteDiary, DiaryEntry } from '@/lib/storage';
 import { emotionIcons } from '@/lib/emotion';
@@ -14,17 +14,10 @@ export default function DiaryListPage() {
   const [diaries, setDiaries] = useState<DiaryEntry[]>([]);
   
   // 일기 목록 불러오기
-  const loadDiaries = () => {
-    try {
-      const allDiaries = getAllDiaries();
-      // 날짜 기준 내림차순 정렬 (최신순)
-      allDiaries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setDiaries(allDiaries);
-    } catch (error) {
-      console.error('일기 불러오기 오류:', error);
-      setDiaries([]);
-    }
-  };
+  useEffect(() => {
+    const loadedDiaries = getAllDiaries();
+    setDiaries(loadedDiaries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  }, []);
   
   // 일기 삭제 처리
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -34,7 +27,7 @@ export default function DiaryListPage() {
     if (confirm('정말 이 일기를 삭제하시겠습니까?')) {
       try {
         deleteDiary(id);
-        loadDiaries(); // 목록 다시 불러오기
+        router.refresh(); // 목록 다시 불러오기
         alert('일기가 삭제되었습니다.');
       } catch (error) {
         console.error('일기 삭제 오류:', error);
@@ -47,44 +40,42 @@ export default function DiaryListPage() {
   const handleDiaryClick = (id: string) => {
     router.push(`/diary/${id}`);
   };
-  
-  // 컴포넌트 마운트 시 데이터 로드
-  useEffect(() => {
-    loadDiaries();
-  }, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-white to-gray-50">
-      <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">내 일기 목록</h1>
-          <div className="flex gap-4">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* 헤더 섹션 */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
             <Link 
               href="/"
-              className="inline-flex items-center px-6 py-3 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors duration-200"
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+              aria-label="홈으로 돌아가기"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-1">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
               </svg>
-              홈으로
             </Link>
-            <Link 
-              href="/diary/new"
-              className="inline-flex items-center px-6 py-3 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors duration-200"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-1">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              새 일기 작성
-            </Link>
+            <h1 className="text-2xl font-bold text-gray-900">내 일기 목록</h1>
           </div>
+          
+          <Link 
+            href="/diary/new"
+            className="w-full sm:w-auto px-6 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            일기 작성
+          </Link>
         </div>
 
+        {/* 일기 목록 */}
         <div className="space-y-6">
           {diaries.length === 0 ? (
             <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.1)] p-8 text-center">
-              <p className="text-gray-500 text-lg">작성된 일기가 없습니다.</p>
-              <p className="text-gray-400 mt-2">새 일기를 작성해보세요.</p>
+              <p className="text-gray-500 text-lg mb-2">작성된 일기가 없습니다.</p>
+              <p className="text-gray-400">새 일기를 작성해보세요.</p>
             </div>
           ) : (
             diaries.map(diary => (
