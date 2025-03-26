@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>MoodDiary - 감정 일기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // 페이지 로드 시 즉시 실행되는 코드
+    (function() {
+      // 현재 페이지가 캐시된 버전인지 확인
+      if (performance.navigation.type !== 1) {
+        // 페이지가 새로 로드된 것이 아니라면 강제 새로고침
+        setTimeout(function() {
+          alert('최신 버전을 로드하기 위해 페이지를 새로고침합니다.');
+          window.location.reload(true);
+        }, 500);
+      } else {
+        // 새로고침되었을 때 알림 표시
+        setTimeout(function() {
+          alert('페이지가 최신 버전으로 새로고침되었습니다. 이제 모든 기능이 정상적으로 작동해야 합니다.');
+        }, 1000);
+      }
+    })();
+    
+    // 스크립트 로드 즉시 실행되는 디버그 메시지
+    console.log('%c스크립트 초기화! 현재 시간: ' + new Date().toISOString(), 'background: #f00; color: #fff; font-size: 20px; padding: 10px;');
+    console.log('%c이 메시지가 보이면 스크립트가 제대로 로드됨', 'background: #f00; color: #fff; font-size: 16px;');
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            "emotion-happy": "#FFD700",
+            "emotion-sad": "#6495ED",
+            "emotion-angry": "#FF4500",
+            "emotion-anxious": "#808080",
+            "emotion-neutral": "#98FB98"
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 50;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.4);
+    }
+    .modal-open {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <!-- 업데이트 알림 배너 -->
+  <div id="updateNotice" class="w-full bg-blue-600 text-white p-4 text-center font-bold sticky top-0 z-50">
+    페이지가 업데이트되었습니다 (버전: <span id="pageVersion">로딩 중...</span>)
+    <button onclick="this.parentNode.remove()" class="ml-4 bg-white text-blue-600 px-2 py-1 rounded-md">닫기</button>
+  </div>
+  <script>
+    // 버전 정보 업데이트
+    document.getElementById('pageVersion').textContent = new Date().toLocaleString('ko-KR');
+  </script>
+  
+  <main class="flex min-h-screen flex-col items-center justify-center p-4 bg-gradient-to-b from-white to-gray-100">
+    <div class="container mx-auto max-w-5xl bg-white shadow-lg rounded-lg p-8">
+      <div class="text-center">
+        <h1 class="text-4xl font-bold mb-2 text-gray-800">MoodDiary</h1>
+        <p class="text-xl text-gray-600 mb-8">당신의 감정을 기록해보세요</p>
+        
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 mt-8">
+          <div class="bg-emotion-happy bg-opacity-20 p-6 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2">일기 작성</h2>
+            <p class="text-gray-700 mb-4">매일의 감정과 생각을 기록하세요</p>
+            <button id="openWriteModal" name="openWriteModal" class="inline-block bg-emotion-happy text-white px-4 py-2 rounded-md font-medium" aria-label="일기 작성 시작하기">
+              시작하기
+            </button>
+          </div>
+          
+          <div class="bg-emotion-sad bg-opacity-20 p-6 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2">감정 분석</h2>
+            <p class="text-gray-700 mb-4">AI가 당신의 감정을 분석합니다11111</p>
+            <button id="viewDiaryBtn" name="viewDiaryBtn" class="inline-block bg-emotion-sad text-white px-4 py-2 rounded-md font-medium" aria-label="일기 목록 보기">
+              일기 보기
+            </button>
+          </div>
+          
+          <div class="bg-emotion-neutral bg-opacity-20 p-6 rounded-lg">
+            <h2 class="text-xl font-semibold mb-2">감정 시각화</h2>
+            <p class="text-gray-700 mb-4">색상과 아이콘으로 감정을 표현합니다</p>
+            <button id="statsBtn" name="statsBtn" class="inline-block bg-emotion-neutral text-gray-800 px-4 py-2 rounded-md font-medium" aria-label="감정 통계 보기">
+              통계 보기
+            </button>
+          </div>
+        </div>
+
+        <!-- 일기 목록 -->
+        <div id="diaryList" class="mt-8 text-left hidden">
+          <h2 class="text-2xl font-bold mb-4">내 일기 목록</h2>
+          <div id="diaryItems" class="space-y-4">
+            <!-- 여기에 일기 항목이 동적으로 추가됩니다 -->
+          </div>
+        </div>
+
+        <div class="mt-12 text-center">
+          <p class="text-gray-500">Note: 이 페이지는 임시 미리보기입니다. 실제 기능을 사용하려면 Node.js를 설치하고 npm run dev를 실행하세요.</p>
+        </div>
+        
+        <!-- 로컬스토리지 상태 확인 섹션 -->
+        <div class="mt-8 p-4 bg-gray-100 rounded-lg">
+          <h3 class="text-lg font-bold mb-2">로컬스토리지 상태</h3>
+          <div id="storageStatus" class="text-left">
+            <p>상태: <span id="storageAvailable" class="font-bold">확인 중...</span></p>
+            <p>테스트 결과: <span id="storageTestResult" class="font-bold">미실행</span></p>
+            <p>저장된 일기 수: <span id="storageDiaryCount" class="font-bold">확인 중...</span></p>
+            <div class="mt-2">
+              <button 
+                id="checkStorageBtn" 
+                class="bg-blue-500 text-white px-2 py-1 rounded-md text-sm"
+              >
+                상태 확인
+              </button>
+              <button 
+                id="clearStorageBtn" 
+                class="bg-red-500 text-white px-2 py-1 rounded-md text-sm ml-2"
+              >
+                스토리지 초기화
+              </button>
+              <button 
+                id="forceRefreshBtn" 
+                class="bg-purple-500 text-white px-2 py-1 rounded-md text-sm ml-2"
+              >
+                강제 새로고침
+              </button>
+              <button 
+                id="resetAndTestBtn" 
+                class="bg-green-600 text-white px-2 py-1 rounded-md text-sm ml-2"
+              >
+                완전 리셋+테스트
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 일기 작성 모달 -->
+  <div id="writeModal" class="modal">
+    <div class="flex items-center justify-center min-h-screen p-4">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h2 class="text-2xl font-bold mb-4">새 일기 작성</h2>
+        
+        <!-- 테스트 버튼 추가 -->
+        <div class="mb-4 flex justify-center">
+          <button 
+            type="button" 
+            id="testLocalStorageBtn"
+            class="bg-purple-500 text-white px-4 py-2 rounded-md text-sm"
+          >
+            로컬스토리지 테스트
+          </button>
+        </div>
+        
+        <form id="diaryForm" name="diaryForm">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="diaryDate">날짜</label>
+            <div class="relative">
+              <input 
+                type="text" 
+                id="diaryDate" 
+                name="diaryDate"
+                class="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                placeholder="날짜를 선택하세요"
+                required
+              >
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" class="w-5 h-5 text-gray-400">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="diaryContent">내용</label>
+            <textarea 
+              id="diaryContent" 
+              name="diaryContent"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 h-40"
+              placeholder="오늘 하루 어떠셨나요? 감정, 생각 등을 자유롭게 적어보세요."
+              required
+            ></textarea>
+          </div>
+          <div class="flex justify-end space-x-3">
+            <button 
+              type="button" 
+              id="closeModal"
+              name="closeModal"
+              class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md"
+              aria-label="취소"
+            >
+              취소
+            </button>
+            <button 
+              type="submit" 
+              id="saveButton"
+              name="saveButton"
+              class="bg-blue-500 text-white px-4 py-2 rounded-md"
+              aria-label="저장"
+            >
+              저장
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 로컬 스토리지 사용 가능 여부 확인
+    function isLocalStorageAvailable() {
+      console.log('로컬 스토리지 사용 가능 여부 확인 중...');
+      try {
+        const test = '__test__' + new Date().getTime();
+        console.log(`테스트 키: "${test}" 저장 시도`);
+        localStorage.setItem(test, test);
+        const result = localStorage.getItem(test) === test;
+        console.log(`테스트 키 확인 결과: ${result ? '일치' : '불일치'}`);
+        localStorage.removeItem(test);
+        console.log('테스트 키 삭제 완료');
+        console.log(`로컬 스토리지 사용 가능: ${result}`);
+        return result;
+      } catch (e) {
+        console.error('로컬 스토리지 테스트 실패:', e);
+        return false;
+      }
+    }
+    
+    // 로컬 스토리지 키
+    const STORAGE_KEY = 'mood-diary-entries';
+    
+    function getAllDiaries() {
+      console.log('%c=== getAllDiaries 함수 시작 ===', 'background: #0a0; color: #fff; font-weight: bold; padding: 2px 5px;');
+      
+      // 메모리 데이터 확인 (로컬 스토리지 우회용)
+      if (window.diaryEntries && window.diaryEntries.length > 0) {
+        console.log(`메모리에서 데이터 로드: ${window.diaryEntries.length}개 항목`);
+        console.log('%c=== getAllDiaries 함수 완료 (메모리) ===', 'background: #0a0; color: #fff; font-weight: bold; padding: 2px 5px;');
+        return window.diaryEntries;
+      }
+      
+      // 그 후 로컬 스토리지 확인
+      console.log('로컬 스토리지 확인 시도');
+      if (!isLocalStorageAvailable()) {
+        console.warn('로컬 스토리지를 사용할 수 없습니다. 메모리 모드로 전환합니다.');
+        window.diaryEntries = window.diaryEntries || [];
+        console.log(`빈 메모리 배열 반환: ${window.diaryEntries.length}개 항목`);
+        console.log('%c=== getAllDiaries 함수 완료 (빈 메모리) ===', 'background: #0a0; color: #fff; font-weight: bold; padding: 2px 5px;');
+        return window.diaryEntries;
+      }
+      
+      try {
+        console.log(`로컬 스토리지에서 키 '${STORAGE_KEY}' 읽기 시도`);
+        const data = localStorage.getItem(STORAGE_KEY);
+        console.log(`로컬 스토리지 데이터 존재 여부: ${data ? '있음' : '없음'}`);
+        
+        if (!data) {
+          console.log('로컬 스토리지에 데이터가 없음, 빈 배열 반환');
+          window.diaryEntries = [];
+          console.log('%c=== getAllDiaries 함수 완료 (빈 로컬 스토리지) ===', 'background: #0a0; color: #fff; font-weight: bold; padding: 2px 5px;');
+          return [];
+        }
+        
+        console.log('로컬 스토리지 데이터 파싱 시도');
+        const parsed = JSON.parse(data);
+        console.log(`파싱 성공: ${parsed.length}개 항목`);
+        
+        window.diaryEntries = parsed; // 메모리에도 복사
+        console.log('메모리에 데이터 복사 완료');
+        
+        console.log('%c=== getAllDiaries 함수 완료 (로컬 스토리지) ===', 'background: #0a0; color: #fff; font-weight: bold; padding: 2px 5px;');
+        return parsed;
+      } catch (e) {
+        console.error('데이터 파싱 오류:', e);
+        window.diaryEntries = window.diaryEntries || [];
+        console.log(`오류로 인한 빈 메모리 배열 반환: ${window.diaryEntries.length}개 항목`);
+        console.log('%c=== getAllDiaries 함수 완료 (오류) ===', 'background: #0a0; color: #fff; font-weight: bold; padding: 2px 5px;');
+        return window.diaryEntries;
+      }
+    }
+    
+    function saveDiary(diary) {
+      console.log('%c=== saveDiary 함수 시작 ===', 'background: #f0f; color: #fff; font-weight: bold; padding: 2px 5px;');
+      console.log('저장 요청된 일기:', diary);
+      
+      if (!diary || !diary.id || !diary.content) {
+        console.error('유효하지 않은 일기 데이터:', diary);
+        return false;
+      }
+      
+      // 메모리 저장 - 로컬 스토리지 실패해도 적용
+      console.log('메모리 저장 시작');
+      window.diaryEntries = window.diaryEntries || [];
+      const memoryIndex = window.diaryEntries.findIndex(entry => entry.id === diary.id);
+      
+      if (memoryIndex >= 0) {
+        console.log(`기존 항목 업데이트 (인덱스: ${memoryIndex})`);
+        window.diaryEntries[memoryIndex] = diary;
+      } else {
+        console.log('새 항목 추가');
+        window.diaryEntries.push(diary);
+      }
+      console.log('현재 메모리 항목 수:', window.diaryEntries.length);
+      
+      // 로컬 스토리지 시도
+      console.log('로컬 스토리지 저장 시도');
+      const storageAvailable = isLocalStorageAvailable();
+      console.log('로컬 스토리지 사용 가능 여부:', storageAvailable);
+      
+      if (!storageAvailable) {
+        console.warn('로컬 스토리지를 사용할 수 없습니다. 메모리에만 저장됩니다.');
+        return true; // 메모리에는 저장 성공
+      }
+      
+      try {
+        // 로컬 스토리지에서 최신 데이터 가져오기 시도
+        console.log('로컬 스토리지에서 기존 데이터 로드 시도');
+        let existing = [];
+        const existingData = localStorage.getItem(STORAGE_KEY);
+        console.log('기존 데이터 문자열:', existingData);
+        
+        if (existingData) {
+          try {
+            existing = JSON.parse(existingData);
+            console.log('파싱된 기존 데이터 항목 수:', existing.length);
+            console.log('파싱된 기존 데이터 샘플:', existing.slice(0, 1));
+          } catch (parseError) {
+            console.warn('기존 데이터 파싱 오류, 초기화합니다:', parseError);
+            existing = [];
+          }
+        } else {
+          console.log('기존 데이터 없음, 새 배열 생성');
+        }
+        
+        const existingIndex = existing.findIndex(entry => entry.id === diary.id);
+        console.log('기존 데이터 내 동일 ID 검색 결과:', existingIndex);
+        
+        if (existingIndex >= 0) {
+          console.log(`기존 항목 업데이트 (인덱스: ${existingIndex})`);
+          existing[existingIndex] = diary;
+        } else {
+          console.log('새 항목 추가');
+          existing.push(diary);
+        }
+        console.log('저장할 데이터 항목 수:', existing.length);
+        
+        const saveData = JSON.stringify(existing);
+        console.log('저장할 JSON 문자열 길이:', saveData.length);
+        
+        // 실제 저장 시도
+        console.log('로컬 스토리지에 저장 시도');
+        localStorage.setItem(STORAGE_KEY, saveData);
+        console.log('저장 명령 실행 완료');
+        
+        // 저장 확인
+        const verify = localStorage.getItem(STORAGE_KEY);
+        const verifyLength = verify ? verify.length : 0;
+        console.log(`저장 확인 (문자열 길이: ${verifyLength})`);
+        
+        const verifySuccess = verify === saveData;
+        console.log('저장 일치 여부:', verifySuccess);
+        
+        console.log('%c=== saveDiary 함수 완료 ===', 'background: #f0f; color: #fff; font-weight: bold; padding: 2px 5px;');
+        return true;
+      } catch (error) {
+        console.error('%c저장 중 오류 발생', 'background: #f00; color: #fff; font-weight: bold; padding: 2px 5px;', error);
+        alert('저장 중 오류가 발생했습니다: ' + error.message);
+        return true; // 메모리에는 저장되었으므로 true 반환
+      }
+    }
+    
+    function deleteDiary(id) {
+      if (!id) {
+        console.error('삭제할 ID가 없습니다');
+        return false;
+      }
+      
+      console.log('일기 삭제:', id);
+      
+      // 메모리 데이터에서 삭제
+      if (window.diaryEntries && window.diaryEntries.length > 0) {
+        window.diaryEntries = window.diaryEntries.filter(diary => diary.id !== id);
+      }
+      
+      // 로컬 스토리지에서 삭제 시도
+      try {
+        if (isLocalStorageAvailable()) {
+          const diaries = getAllDiaries();
+          const filteredDiaries = diaries.filter(diary => diary.id !== id);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredDiaries));
+        }
+        return true;
+      } catch (error) {
+        console.error('삭제 중 오류:', error);
+        return true; // 메모리에서는 삭제됨
+      }
+    }
+    
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    }
+
+    // 간단한 감정 분석 (키워드 기반)
+    function analyzeEmotion(text) {
+      const keywords = {
+        happy: ['행복', '기쁨', '좋은', '즐거운', '신나는', '웃음', '재미'],
+        sad: ['슬픔', '우울', '속상', '눈물', '아쉬움', '그리움', '외로움'],
+        angry: ['화남', '분노', '짜증', '열받는', '화가', '미움', '증오'],
+        anxious: ['불안', '걱정', '초조', '스트레스', '두려움', '무서움'],
+        neutral: ['평범', '무난', '그냥', '보통', '일상', '별일 없']
+      };
+      
+      const scores = {
+        happy: 0,
+        sad: 0,
+        angry: 0,
+        anxious: 0,
+        neutral: 1 // 기본값으로 중립에 약간의 가중치
+      };
+      
+      for (const [emotion, words] of Object.entries(keywords)) {
+        for (const word of words) {
+          if (text.includes(word)) {
+            scores[emotion] += 1;
+          }
+        }
+      }
+      
+      let maxEmotion = 'neutral';
+      let maxScore = 0;
+      
+      for (const [emotion, score] of Object.entries(scores)) {
+        if (score > maxScore) {
+          maxScore = score;
+          maxEmotion = emotion;
+        }
+      }
+      
+      return maxEmotion;
+    }
+
+    // 이모지 맵핑
+    const emotionIcons = {
+      happy: '😊',
+      sad: '😢',
+      angry: '😡',
+      anxious: '😰',
+      neutral: '😐',
+    };
+    
+    // 모달 제어
+    const writeModal = document.getElementById('writeModal');
+    const openWriteModalBtn = document.getElementById('openWriteModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const diaryForm = document.getElementById('diaryForm');
+    const viewDiaryBtn = document.getElementById('viewDiaryBtn');
+    const diaryList = document.getElementById('diaryList');
+    const diaryItems = document.getElementById('diaryItems');
+    
+    // 현재 날짜 설정
+    document.getElementById('diaryDate').valueAsDate = new Date();
+    
+    // 모달 열기
+    openWriteModalBtn.addEventListener('click', () => {
+      writeModal.classList.add('modal-open');
+    });
+    
+    // 모달 닫기
+    closeModalBtn.addEventListener('click', () => {
+      writeModal.classList.remove('modal-open');
+    });
+    
+    // 외부 클릭 시 모달 닫기
+    writeModal.addEventListener('click', (e) => {
+      if (e.target === writeModal) {
+        writeModal.classList.remove('modal-open');
+      }
+    });
+    
+    // 일기 저장
+    diaryForm.addEventListener('submit', function(e) {
+      // 기본 동작 방지 (페이지 새로고침 방지)
+      e.preventDefault();
+      console.log('%c일기 저장 시작', 'background: #ff0; color: #000; font-weight: bold; padding: 2px 5px;');
+      
+      // 입력값 가져오기
+      const dateInput = document.getElementById('diaryDate');
+      const contentInput = document.getElementById('diaryContent');
+      
+      console.log('폼 요소 확인:', {
+        폼_자체: diaryForm, 
+        날짜_입력: dateInput, 
+        내용_입력: contentInput
+      });
+      
+      if (!dateInput || !contentInput) {
+        console.error('폼 요소를 찾을 수 없습니다:', { dateInput, contentInput });
+        return;
+      }
+      
+      const date = dateInput.value;
+      const content = contentInput.value;
+      
+      console.log('%c입력값 확인', 'background: #0f0; color: #000; font-weight: bold; padding: 2px 5px;');
+      console.log('날짜:', date);
+      console.log('내용:', content);
+      console.table({날짜: date, 내용: content, 날짜타입: typeof date, 내용타입: typeof content});
+      
+      if (!date || !content) {
+        console.error('입력값이 비어있습니다:', { date, content });
+        alert('날짜와 내용을 모두 입력해주세요.');
+        return;
+      }
+      
+      // 감정 분석
+      const emotion = analyzeEmotion(content);
+      console.log('분석된 감정:', emotion);
+      
+      // 새 일기 객체 생성
+      const newDiary = {
+        id: generateId(),
+        date: date,
+        content: content,
+        emotion: emotion,
+        createdAt: new Date().toISOString()
+      };
+      
+      console.log('%c저장할 객체', 'background: #0ff; color: #000; font-weight: bold; padding: 2px 5px;');
+      console.table(newDiary);
+      
+      try {
+        // 메모리에 저장
+        console.log('메모리에 저장 시작');
+        window.diaryEntries = window.diaryEntries || [];
+        const oldLength = window.diaryEntries.length;
+        window.diaryEntries.push(newDiary);
+        console.log(`메모리 길이 확인: ${oldLength} → ${window.diaryEntries.length}`);
+        console.log('메모리에 저장된 데이터:', window.diaryEntries);
+        
+        // 로컬 스토리지에 저장 시도
+        console.log('로컬 스토리지 저장 시도');
+        const saveSuccess = saveDiary(newDiary);
+        console.log('%c저장 결과:', 'font-weight: bold;', saveSuccess ? '성공' : '실패');
+        
+        // 입력 폼 초기화
+        contentInput.value = '';
+        
+        // 모달 닫기
+        writeModal.classList.remove('modal-open');
+        
+        // 성공 메시지
+        alert('일기가 저장되었습니다. 감정: ' + emotion);
+        
+        // 일기 목록 업데이트
+        if (diaryList.classList.contains('hidden') === false) {
+          console.log('일기 목록 업데이트');
+          renderDiaryList();
+        }
+        
+        console.log('%c일기 저장 완료', 'background: #ff0; color: #000; font-weight: bold; padding: 2px 5px;');
+        return false; // 추가 방어 코드
+      } catch (err) {
+        console.error('%c일기 저장 중 오류', 'background: #f00; color: #fff; font-weight: bold; padding: 2px 5px;', err);
+        alert('일기 저장 중 오류가 발생했습니다: ' + err.message);
+        return false;
+      }
+    });
+    
+    // 일기 목록 보기
+    viewDiaryBtn.addEventListener('click', () => {
+      console.log('일기 목록 보기 버튼 클릭');
+      const wasHidden = diaryList.classList.contains('hidden');
+      console.log(`이전 상태: ${wasHidden ? '숨김' : '표시'}`);
+      
+      diaryList.classList.toggle('hidden');
+      const isVisible = !diaryList.classList.contains('hidden');
+      console.log(`현재 상태: ${isVisible ? '표시' : '숨김'}`);
+      
+      if (isVisible) {
+        console.log('목록이 표시됨 - 렌더링 시작');
+        renderDiaryList();
+      }
+    });
+    
+    // 일기 목록 렌더링
+    function renderDiaryList() {
+      console.log('%c=== 일기 목록 렌더링 시작 ===', 'background: #09f; color: #fff; font-weight: bold; padding: 2px 5px;');
+      try {
+        const diaries = getAllDiaries();
+        console.log(`렌더링할 일기 목록: ${diaries ? diaries.length : 0}개 항목`);
+        
+        // 표시할 컨테이너
+        const container = document.getElementById('diaryItems');
+        if (!container) {
+          console.error('일기 목록 컨테이너를 찾을 수 없습니다.');
+          return;
+        }
+        
+        console.log('컨테이너를 찾음, 내용 초기화');
+        container.innerHTML = '';
+        
+        if (!diaries || diaries.length === 0) {
+          console.log('일기가 없음 - 빈 메시지 표시');
+          container.innerHTML = '<p class="text-gray-500 text-center py-4">작성된 일기가 없습니다.</p>';
+          console.log('%c=== 일기 목록 렌더링 완료 (빈 목록) ===', 'background: #09f; color: #fff; font-weight: bold; padding: 2px 5px;');
+          return;
+        }
+        
+        // 렌더링 정보 표시
+        console.log('%c렌더링할 첫 번째 항목:', 'font-weight: bold;');
+        console.table(diaries[0]);
+        
+        try {
+          // 날짜순 정렬 (최신순)
+          console.log('날짜순 정렬 시작');
+          diaries.sort((a, b) => new Date(b.date) - new Date(a.date));
+          console.log('정렬 완료');
+          
+          console.log(`${diaries.length}개 항목 렌더링 시작`);
+          diaries.forEach((diary, index) => {
+            if (!diary || !diary.id) {
+              console.warn(`유효하지 않은 일기 항목 (인덱스: ${index}):`, diary);
+              return;
+            }
+            
+            try {
+              console.log(`항목 ${index+1}/${diaries.length} 렌더링: ID ${diary.id}`);
+              const truncatedContent = diary.content && diary.content.length > 100 
+                ? `${diary.content.slice(0, 100)}...` 
+                : (diary.content || '내용 없음');
+              
+              const dateObj = new Date(diary.date);
+              const formattedDate = isNaN(dateObj.getTime()) 
+                ? '날짜 없음'
+                : `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일`;
+              
+              const emotion = diary.emotion || 'neutral';
+              const emotionIcon = emotionIcons[emotion] || emotionIcons.neutral;
+              
+              const diaryCard = document.createElement('div');
+              diaryCard.className = `p-4 rounded-lg shadow-md cursor-pointer bg-emotion-${emotion} bg-opacity-10 hover:bg-opacity-20 transition-all border border-gray-200`;
+              diaryCard.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                  <span class="text-sm text-gray-500">${formattedDate}</span>
+                  <span class="text-2xl" role="img" aria-label="${emotion} 감정">${emotionIcon}</span>
+                </div>
+                <p class="text-gray-700">${truncatedContent}</p>
+                <div class="flex justify-end mt-2">
+                  <button class="delete-btn text-red-500 text-sm" data-id="${diary.id}" aria-label="일기 삭제">삭제</button>
+                </div>
+              `;
+              
+              container.appendChild(diaryCard);
+            } catch (itemErr) {
+              console.error(`항목 ${index+1} 렌더링 오류:`, itemErr, diary);
+            }
+          });
+          
+          // 삭제 버튼 이벤트 리스너
+          console.log('삭제 버튼 이벤트 리스너 등록');
+          const deleteButtons = document.querySelectorAll('.delete-btn');
+          console.log(`${deleteButtons.length}개의 삭제 버튼 발견`);
+          
+          deleteButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const id = e.target.dataset.id;
+              console.log(`삭제 버튼 클릭: ID ${id}`);
+              
+              if (confirm('정말 삭제하시겠습니까?')) {
+                console.log(`ID ${id} 삭제 확인됨`);
+                deleteDiary(id);
+                console.log('목록 다시 렌더링');
+                renderDiaryList();
+              } else {
+                console.log('삭제 취소됨');
+              }
+            });
+          });
+          
+          console.log('%c=== 일기 목록 렌더링 완료 ===', 'background: #09f; color: #fff; font-weight: bold; padding: 2px 5px;');
+        } catch (sortErr) {
+          console.error('일기 목록 정렬 오류:', sortErr);
+        }
+      } catch (error) {
+        console.error('일기 목록 렌더링 오류:', error);
+      }
+    }
+  </script>
+
+  <script>
+    // 전체 페이지 로드 완료 후 실행되는 추가 스크립트
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('%c페이지 로드 완료! DOM 준비됨', 'background: #00f; color: #fff; font-size: 20px; padding: 10px;');
+      
+      // 로컬스토리지 상태 UI 업데이트
+      function updateStorageStatus() {
+        const availableEl = document.getElementById('storageAvailable');
+        const diaryCountEl = document.getElementById('storageDiaryCount');
+        
+        try {
+          // 로컬스토리지 사용 가능 여부 테스트
+          let isAvailable = false;
+          try {
+            const testKey = '__test__' + Date.now();
+            localStorage.setItem(testKey, testKey);
+            isAvailable = localStorage.getItem(testKey) === testKey;
+            localStorage.removeItem(testKey);
+          } catch (e) {
+            isAvailable = false;
+            console.error('로컬스토리지 테스트 실패:', e);
+          }
+          
+          // 상태 표시
+          if (availableEl) {
+            availableEl.textContent = isAvailable ? '사용 가능' : '사용 불가';
+            availableEl.className = 'font-bold ' + (isAvailable ? 'text-green-600' : 'text-red-600');
+          }
+          
+          // 저장된 일기 수 확인
+          if (diaryCountEl) {
+            try {
+              const diaryData = localStorage.getItem('mood-diary-entries');
+              let count = 0;
+              if (diaryData) {
+                const entries = JSON.parse(diaryData);
+                count = Array.isArray(entries) ? entries.length : 0;
+              }
+              diaryCountEl.textContent = count + '개';
+            } catch (e) {
+              diaryCountEl.textContent = '오류 (읽기 실패)';
+              diaryCountEl.className = 'font-bold text-red-600';
+            }
+          }
+          
+          return isAvailable;
+        } catch (e) {
+          if (availableEl) {
+            availableEl.textContent = '오류 (' + e.message + ')';
+            availableEl.className = 'font-bold text-red-600';
+          }
+          return false;
+        }
+      }
+      
+      // 로컬스토리지 테스트 함수
+      function testLocalStorage() {
+        try {
+          alert('로컬스토리지 테스트를 시작합니다.');
+          
+          // 기본 테스트
+          const testKey = 'test-diary-' + new Date().getTime();
+          const testValue = '테스트 로컬스토리지 - ' + new Date().toISOString();
+          
+          // 콘솔과 화면에 모두 표시
+          console.log('저장 시도:', testKey, testValue);
+          alert('저장 시도: ' + testKey + ' = ' + testValue);
+          
+          // 저장 시도
+          localStorage.setItem(testKey, testValue);
+          
+          // 읽기 시도
+          const readValue = localStorage.getItem(testKey);
+          console.log('읽기 결과:', readValue);
+          alert('읽기 결과: ' + readValue);
+          
+          // 검증
+          const isSuccess = readValue === testValue;
+          console.log('테스트 성공 여부:', isSuccess);
+          alert('테스트 ' + (isSuccess ? '성공' : '실패'));
+          
+          // 테스트 키 삭제
+          localStorage.removeItem(testKey);
+          alert('테스트 완료: ' + (isSuccess ? '로컬스토리지 정상' : '로컬스토리지 문제 있음'));
+          
+          // UI 업데이트
+          const resultEl = document.getElementById('storageTestResult');
+          if (resultEl) {
+            resultEl.textContent = isSuccess ? '성공' : '실패';
+            resultEl.className = 'font-bold ' + (isSuccess ? 'text-green-600' : 'text-red-600');
+          }
+          
+          return isSuccess;
+        } catch (e) {
+          console.error('로컬스토리지 테스트 중 오류:', e);
+          alert('로컬스토리지 테스트 중 오류: ' + e.message);
+          
+          // UI 업데이트
+          const resultEl = document.getElementById('storageTestResult');
+          if (resultEl) {
+            resultEl.textContent = '오류 (' + e.message + ')';
+            resultEl.className = 'font-bold text-red-600';
+          }
+          
+          return false;
+        }
+      }
+      
+      // 로컬스토리지 초기화 함수
+      function clearLocalStorage() {
+        try {
+          if (confirm('정말 로컬스토리지의 모든 일기 데이터를 삭제하시겠습니까?')) {
+            localStorage.removeItem('mood-diary-entries');
+            window.diaryEntries = [];
+            alert('로컬스토리지 데이터가 초기화되었습니다.');
+            updateStorageStatus();
+          }
+        } catch (e) {
+          alert('로컬스토리지 초기화 중 오류: ' + e.message);
+        }
+      }
+      
+      // 초기 상태 업데이트
+      updateStorageStatus();
+      
+      // 테스트 버튼 이벤트 추가
+      const testBtn = document.getElementById('testLocalStorageBtn');
+      if (testBtn) {
+        testBtn.addEventListener('click', function(e) {
+          console.log('테스트 버튼 클릭됨');
+          alert('테스트 버튼 클릭됨');
+          testLocalStorage();
+        });
+      }
+      
+      // 상태 확인 버튼 이벤트 추가
+      const checkBtn = document.getElementById('checkStorageBtn');
+      if (checkBtn) {
+        checkBtn.addEventListener('click', function() {
+          updateStorageStatus();
+          alert('로컬스토리지 상태를 업데이트했습니다.');
+        });
+      }
+      
+      // 초기화 버튼 이벤트 추가
+      const clearBtn = document.getElementById('clearStorageBtn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', clearLocalStorage);
+      }
+      
+      // 강제 새로고침 버튼 이벤트 추가
+      const forceRefreshBtn = document.getElementById('forceRefreshBtn');
+      if (forceRefreshBtn) {
+        forceRefreshBtn.addEventListener('click', function() {
+          alert('페이지를 강제로 새로고침합니다. 캐시가 완전히 삭제됩니다.');
+          // 캐시를 무시하고 강제 새로고침
+          window.location.reload(true);
+        });
+      }
+      
+      // 완전 리셋+테스트 버튼 이벤트 추가
+      const resetAndTestBtn = document.getElementById('resetAndTestBtn');
+      if (resetAndTestBtn) {
+        resetAndTestBtn.addEventListener('click', function() {
+          try {
+            // 모든 로컬스토리지 데이터 삭제
+            localStorage.clear();
+            // 메모리 데이터 초기화
+            window.diaryEntries = [];
+            alert('로컬스토리지와 메모리가 완전히 초기화되었습니다. 테스트를 시작합니다.');
+            
+            // UI 업데이트
+            updateStorageStatus();
+            
+            // 테스트 실행
+            setTimeout(function() {
+              testLocalStorage();
+            }, 500);
+          } catch (e) {
+            alert('리셋 중 오류가 발생했습니다: ' + e.message);
+          }
+        });
+      }
+      
+      // 폼 요소 직접 다시 선택
+      const diaryForm = document.getElementById('diaryForm');
+      if (diaryForm) {
+        console.log('폼 요소 찾음:', diaryForm);
+        
+        // 두 번째 이벤트 리스너 추가 (기존 리스너와 별개)
+        diaryForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          console.log('%c두 번째 이벤트 리스너: 폼 제출됨!', 'background: #f00; color: #fff; font-size: 20px; padding: 10px;');
+          
+          const dateInput = document.getElementById('diaryDate');
+          const contentInput = document.getElementById('diaryContent');
+          console.log('입력값:', {
+            날짜: dateInput ? dateInput.value : '없음',
+            내용: contentInput ? contentInput.value : '없음'
+          });
+          
+          // 폼 제출 시 로컬스토리지 테스트도 추가 실행
+          alert('폼 제출 후 로컬스토리지 테스트 실행');
+          testLocalStorage();
+        });
+        
+        // 직접 버튼에 클릭 이벤트 추가
+        const saveButton = document.getElementById('saveButton');
+        if (saveButton) {
+          console.log('저장 버튼 찾음:', saveButton);
+          saveButton.addEventListener('click', function(e) {
+            console.log('%c저장 버튼 클릭됨!', 'background: #0f0; color: #000; font-size: 20px; padding: 10px;');
+            alert('저장 버튼 클릭됨!');
+          });
+        } else {
+          console.error('저장 버튼을 찾을 수 없습니다');
+        }
+      } else {
+        console.error('폼 요소를 찾을 수 없습니다 (DOMContentLoaded에서)');
+      }
+    });
+  </script>
+</body>
+</html> 
