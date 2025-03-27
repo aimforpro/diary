@@ -1,15 +1,15 @@
-const CACHE_NAME = 'mood-diary-v1';
+const CACHE_NAME = 'mooddiary-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/icons/icon-72x72.png',
-  '/icons/icon-96x96.png',
-  '/icons/icon-128x128.png',
-  '/icons/icon-144x144.png',
-  '/icons/icon-152x152.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-384x384.png',
-  '/icons/icon-512x512.png'
+  '/icons/72.svg',
+  '/icons/96.svg',
+  '/icons/128.svg',
+  '/icons/144.svg',
+  '/icons/152.svg',
+  '/icons/192.svg',
+  '/icons/385.svg',
+  '/icons/512.svg'
 ];
 
 self.addEventListener('install', (event) => {
@@ -28,18 +28,7 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
-        return fetch(event.request)
-          .then((response) => {
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            return response;
-          });
+        return fetch(event.request);
       })
   );
 });
